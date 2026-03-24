@@ -1,5 +1,7 @@
 // clipboard-client.ts
 
+import { decrypt, encrypt, hash } from "./utils/crypto.ts";
+
 export interface CreateOptions {
   id?: string;
   expirationTtl?: number;
@@ -56,7 +58,10 @@ export class ClipboardClient {
     const payload: any = { content };
     if (options?.id) payload.id = options.id;
     if (options?.expirationTtl) payload.expirationTtl = options.expirationTtl;
-    if (options?.pwd !== undefined) payload.pwd = options.pwd;
+    if (options?.pwd) {
+      payload.pwd = await hash(options.pwd);
+      payload.content = await encrypt(content, options.pwd);
+    }
 
     const response = await fetch(`${this.baseUrl}/`, {
       method: "POST",
@@ -89,7 +94,7 @@ export class ClipboardClient {
    */
   async get(id: string, pwd?: string | null): Promise<GetResponse> {
     const payload: any = { get: true };
-    if (pwd !== undefined) payload.pwd = pwd;
+    if (pwd) payload.pwd = await hash(pwd);
 
     const response = await fetch(`${this.baseUrl}/${encodeURIComponent(id)}`, {
       method: "POST",
@@ -107,7 +112,14 @@ export class ClipboardClient {
       );
     }
 
-    return await response.json();
+    const res = (await response.json()) as GetResponse;
+
+    if (res.pwd) {
+      res.content = await decrypt(res.content, pwd as string);
+      res.pwd = pwd as string;
+    }
+
+    return res;
   }
 
   /**
@@ -122,8 +134,11 @@ export class ClipboardClient {
     options?: UpdateOptions,
   ): Promise<UpdateResponse> {
     const payload: any = { content };
-    if (options?.old_pwd !== undefined) payload.old_pwd = options.old_pwd;
-    if (options?.new_pwd !== undefined) payload.new_pwd = options.new_pwd;
+    if (options?.old_pwd) payload.old_pwd = await hash(options.old_pwd);
+    if (options?.new_pwd) {
+      payload.new_pwd = await hash(options.new_pwd);
+      payload.content = await encrypt(content, options.new_pwd);
+    }
 
     const response = await fetch(`${this.baseUrl}/${encodeURIComponent(id)}`, {
       method: "PUT",
@@ -155,7 +170,7 @@ export class ClipboardClient {
    */
   async delete(id: string, pwd?: string | null): Promise<DeleteResponse> {
     const payload: any = {};
-    if (pwd !== undefined) payload.pwd = pwd;
+    if (pwd) payload.pwd = await hash(pwd);
 
     const response = await fetch(`${this.baseUrl}/${encodeURIComponent(id)}`, {
       method: "DELETE",

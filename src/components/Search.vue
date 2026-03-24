@@ -21,11 +21,14 @@
     <n-input
       v-model:value="value"
       type="text"
+      @keyup.enter="go"
       placeholder="输入云剪切板的名称"
     />
     <n-input
       v-model:value="pwd"
       type="password"
+      show-password-on="click"
+      @keyup.enter="go"
       placeholder="输入云剪切板的密码，没有请留空"
     />
     <n-button

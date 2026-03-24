@@ -5,7 +5,7 @@
       <span>{{ param }}</span>
     </h2>
 
-    <n-form ref="formRef" :model="formValue" style="width: 100%">
+    <n-form ref="formRef" :model="formValue" style="width: 100%" :rules="rules">
       <div style="margin-bottom: 10px" v-if="!isAppend">
         <p>创建时间：{{ formatDate(creationTime) }}</p>
         <p style="margin-bottom: 10px">失效时间：{{ formatDate(deadTime) }}</p>
@@ -37,7 +37,9 @@
         <n-button type="info" @click="onFormSubmit" style="margin-right: 10px">
           提交
         </n-button>
-        <n-button type="error" @click="onFormDelete"> 删除 </n-button>
+        <n-button type="error" @click="onFormDelete" v-if="!isAppend">
+          删除
+        </n-button>
       </n-form-item>
     </n-form>
   </div>
@@ -58,7 +60,10 @@ import {
   NSwitch,
   NCollapseTransition,
   NSpin,
+  type FormItemRule,
   type NotificationType,
+  type FormRules,
+  type FormInst,
 } from "naive-ui";
 import { ClipboardClient, ClipboardError } from "../clipboard.ts";
 import { useNotification, useModal } from "naive-ui";
@@ -67,7 +72,9 @@ import { h } from "vue";
 const route = useRoute();
 const router = useRouter();
 const param = route.params.param as string;
-const clipboardClient = new ClipboardClient("https://cpbd.api.jerrylab.top");
+const clipboardClient = new ClipboardClient(
+  import.meta.env.VITE_CLIPBOARD_API_PATH,
+);
 
 const creationTime = ref(new Date());
 const deadTime = ref(new Date());
@@ -77,6 +84,7 @@ const isInitDone = ref(false);
 
 const isAppend = ref(false);
 const modal = useModal();
+const formRef: Ref<FormInst | null> = ref(null);
 
 const formValue = ref({
   ttl: 24 * 60 * 60,
@@ -133,12 +141,12 @@ onMounted(() => {
       isInitDone.value = true;
     },
     (rej: ClipboardError) => {
-      if (rej.status === 401) {
+      if (rej.status === 403) {
         router.push("/");
         notify(
           "error",
           "查询失败",
-          `${thisPwd.value === null ? `需要密码` : `密码错误`}。`,
+          `${thisPwd.value ? `密码错误` : `需要密码`}。`,
         );
       } else {
         isAppend.value = true;
@@ -159,7 +167,37 @@ function notify(type: NotificationType, title: string, content: string) {
   });
 }
 
+const rules: FormRules = {
+  text: [
+    {
+      validator(_: FormItemRule, value: string) {
+        if (!value) {
+          return new Error("内容不能为空。");
+        }
+      },
+      trigger: ["blur"],
+    },
+  ],
+  pwd: [
+    {
+      validator(_: FormItemRule, value: string) {
+        if (!value && formValue.value.usePwd) {
+          return new Error("密码不能为空。");
+        }
+      },
+      trigger: ["blur"],
+    },
+  ],
+};
+
 function onFormSubmit() {
+  formRef.value?.validate((errors) => {
+    if (!errors) submit();
+    else return;
+  });
+}
+
+function submit() {
   if (isAppend.value) {
     clipboardClient
       .create(formValue.value.text, {

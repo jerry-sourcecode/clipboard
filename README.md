@@ -1,5 +1,19 @@
-# Vue 3 + TypeScript + Vite
+# 云剪贴板项目 README
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+## 项目简介
+云剪贴板是一个轻量级的工具，旨在解决多设备间复制粘贴文本内容的不便。通过本项目，用户可以在任何设备上随时获取最近复制的内容，并且可以设置密码保护以确保数据安全。
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## 功能描述
+### 主要功能
+- **新建或查询**：用户可以通过输入名称和可选密码来创建新的云剪贴板，或者查询已有的云剪贴板。
+- **查看与编辑**：用户可以查看云剪贴板的内容，并进行编辑、更新或删除操作。
+- **密码保护**：支持为每个云剪贴板设置独立的访问密码，确保数据的安全性。
+- **自动同步**：在不同设备间自动同步最新的复制内容，无需手动传输。
+- **超长时长**：最远可以维持60天。
+
+### 组件介绍
+- **Search.vue**：用于创建或查询云剪贴板的入口界面。
+- **Workbench.vue**：展示并允许用户编辑指定的云剪贴板内容。
+- **App.vue**：应用程序的主组件，负责渲染页面头部及路由切换。
+- **clipboard.ts**：封装了与后端 API 交互的方法，包括创建、读取、更新和删除云剪贴板内容等。
+- **crypto.ts**：提供了对称加密/解密与哈希算法的支持，保障数据传输过程中的安全性。

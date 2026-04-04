@@ -52,6 +52,7 @@
             <FileUpload
               :disabled="formValue.file.pass === '' && !isADMIN"
               ref="fileUploadRef"
+              v-model:loading-text="loadingText"
             />
           </div>
         </n-form-item>
@@ -67,7 +68,11 @@
     </n-form>
   </div>
   <div v-show="isLoading" style="margin: 10vh">
-    <n-spin size="large" />
+    <n-spin size="large">
+      <template #description>
+        {{ loadingText }}
+      </template>
+    </n-spin>
   </div>
 </template>
 
@@ -112,6 +117,8 @@ const fileUploadRef = ref<InstanceType<typeof FileUpload> | null>(null);
 const isAppend = ref(false);
 const modal = useModal();
 const formRef: Ref<FormInst | null> = ref(null);
+
+const loadingText = ref("正在加载");
 
 const formValue = ref({
   ttl: 24 * 60 * 60,
@@ -247,6 +254,7 @@ async function submit() {
       : undefined;
   }
   isLoading.value = true;
+  loadingText.value = `正在上传...`;
   if (isAppend.value) {
     clipboardClient
       .create(formValue.value.text, {
@@ -266,6 +274,7 @@ async function submit() {
       )
       .finally(() => {
         isLoading.value = false;
+        loadingText.value = "正在加载...";
       });
   } else {
     clipboardClient
@@ -284,6 +293,7 @@ async function submit() {
       )
       .finally(() => {
         isLoading.value = false;
+        loadingText.value = "正在加载...";
       });
   }
 }

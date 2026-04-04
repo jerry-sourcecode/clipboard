@@ -57,6 +57,10 @@ defineExpose({
   initFileData,
 });
 
+const loadingText = defineModel("loading-text", {
+  type: String,
+});
+
 const disabled = defineModel("disabled", {
   type: Boolean,
   default: false,
@@ -81,7 +85,9 @@ function isTextMimeType(mimeType: string) {
 async function toUploadData(pass: string | null = null) {
   const array: Array<Attachment> = [];
 
-  for (let uplFileInfo of fileListRef.value) {
+  for (let i = 0; i < fileListRef.value.length; i++) {
+    const uplFileInfo = fileListRef.value[i];
+    loadingText.value = `正在压缩第${i + 1}个文件...`;
     const file = uplFileInfo.file!;
     let buf;
     if (!isTextMimeType(file.type)) {
@@ -92,6 +98,7 @@ async function toUploadData(pass: string | null = null) {
       buf = compressed.buffer;
     }
     let encrypted: string;
+    loadingText.value = `正在加密第${i + 1}个文件...`;
     if (pass !== null) {
       encrypted = await encryptBinary(new Uint8Array(buf), pass);
     } else {
@@ -142,7 +149,7 @@ async function initFileData(files: Attachment[], pass: string | null = null) {
       type: fl.MINE,
     });
     fileListRef.value[id].percentage = 100;
-    fileListRef.value[id].status = "pending";
+    fileListRef.value[id].status = "finished";
   }
 }
 

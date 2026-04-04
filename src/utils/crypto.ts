@@ -17,13 +17,24 @@ function strToUint8(str: string): Uint8Array {
 }
 
 export function uint8ToBase64(uint8: Uint8Array): string {
-  return btoa(String.fromCharCode(...uint8));
+  const CHUNK_SIZE = 0x8000; // 32768 字节
+  const chunks: string[] = [];
+  for (let i = 0; i < uint8.length; i += CHUNK_SIZE) {
+    const chunk = uint8.subarray(i, i + CHUNK_SIZE);
+    chunks.push(String.fromCharCode.apply(null, chunk as unknown as number[]));
+  }
+  return btoa(chunks.join(""));
 }
 
 export function base64ToUint8(base64: string): Uint8Array {
-  return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const uint8 = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    uint8[i] = binaryString.charCodeAt(i);
+  }
+  return uint8;
 }
-
 /**
  * 从密码派生密钥 (PBKDF2 + SHA-256)
  */

@@ -118,7 +118,7 @@ const isAppend = ref(false);
 const modal = useModal();
 const formRef: Ref<FormInst | null> = ref(null);
 
-const loadingText = ref("正在加载");
+const loadingText = ref("正在加载...");
 
 const formValue = ref({
   ttl: 24 * 60 * 60,
@@ -180,11 +180,12 @@ onMounted(() => {
       formValue.value.usePwd = res.pwd !== null;
       formValue.value.pwd = res.pwd ?? "";
       isADMIN.value = res.identity === Identity.Admin;
-      formValue.value.file.use = res.files.length !== 0;
       notify("info", "查询成功", `查询到剪切板已经存在内容。`);
+      formValue.value.file.use = true;
       isLoading.value = false;
       nextTick(() => {
         fileUploadRef.value!.initFileData(res.files, formPwd.value ?? null);
+        formValue.value.file.use = res.files.length !== 0;
       });
     },
     (rej: ClipboardError) => {
@@ -246,15 +247,16 @@ function onFormSubmit() {
 
 async function submit() {
   async function getAttachment() {
-    return formValue.value.file.use
+    const x = formValue.value.file.use
       ? {
           files: await fileUploadRef.value!.toUploadData(formPwd.value),
           admin_key: formValue.value.file.pass,
         }
       : undefined;
+    loadingText.value = `正在上传...`;
+    return x;
   }
   isLoading.value = true;
-  loadingText.value = `正在上传...`;
   if (isAppend.value) {
     clipboardClient
       .create(formValue.value.text, {

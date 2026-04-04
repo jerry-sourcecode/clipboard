@@ -40,13 +40,14 @@ function handleBeforeUpload(options: {
   for (let i of options.fileList) {
     tot += (i.file?.size || 0) / 1024;
   }
-  tot += (options.file.file?.size || 0) / 1024;
-  if (tot > 1024 * 100) {
-    window.alert("文件总大小不能超过100MB。");
+  const thisSize = (options.file.file?.size || 0) / 1024;
+  tot += thisSize;
+  if (tot > 1024 * 50) {
+    window.alert("文件总大小不能超过50MB。");
     return false; // 阻止上传
   }
-  if (options.fileList.length >= 6) {
-    window.alert("最多只能上传6个文件。");
+  if (options.fileList.length >= 10) {
+    window.alert("最多只能上传10个文件。");
     return false;
   }
   return true;

@@ -89,7 +89,7 @@ export class ClipboardClient {
       payload.content = await encrypt(content, options.pwd);
     }
 
-    const response = await fetch(`${this.baseUrl}/`, {
+    const response = await fetch(`${this.baseUrl}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

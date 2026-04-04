@@ -1,5 +1,5 @@
 <template>
-  <div class="desc" v-show="isInitDone">
+  <div class="desc" v-show="!isLoading">
     <h2 style="margin-bottom: 20px">
       <span v-if="isAppend">创建</span>剪切板
       <span>{{ param }}</span>
@@ -7,7 +7,7 @@
 
     <n-form ref="formRef" :model="formValue" style="width: 100%" :rules="rules">
       <div style="margin-bottom: 10px" v-if="!isAppend">
-        <p>创建时间：{{ formatDate(creationTime) }}</p>
+        <p>更新时间：{{ formatDate(creationTime) }}</p>
         <p style="margin-bottom: 10px">失效时间：{{ formatDate(deadTime) }}</p>
       </div>
       <n-form-item label="时效" path="ttl" v-if="isAppend">
@@ -33,6 +33,29 @@
           placeholder="输入文本"
         />
       </n-form-item>
+      <n-form-item label="启用文件上传" path="useFile">
+        <n-switch v-model:value="formValue.file.use" />
+      </n-form-item>
+      <n-collapse-transition :show="formValue.file.use">
+        <n-form-item label="文件" path="file">
+          <div class="block-item">
+            <div v-if="isADMIN">你已拥有管理员权限。</div>
+            <div v-else>上传文件需要管理员密码：</div>
+            <n-input
+              v-if="!isADMIN"
+              v-model:value="formValue.file.pass"
+              show-password-on="click"
+              type="password"
+              placeholder="输入管理员密码"
+              style="margin: 5px 0"
+            />
+            <FileUpload
+              :disabled="formValue.file.pass === '' && !isADMIN"
+              ref="fileUploadRef"
+            />
+          </div>
+        </n-form-item>
+      </n-collapse-transition>
       <n-form-item>
         <n-button type="info" @click="onFormSubmit" style="margin-right: 10px">
           提交
@@ -43,14 +66,14 @@
       </n-form-item>
     </n-form>
   </div>
-  <div v-show="!isInitDone" style="margin: 10vh">
+  <div v-show="isLoading" style="margin: 10vh">
     <n-spin size="large" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRoute, useRouter } from "vue-router";
-import { onMounted, type Ref, ref } from "vue";
+import { computed, nextTick, onMounted, type Ref, ref } from "vue";
 import {
   NForm,
   NFormItem,
@@ -65,9 +88,10 @@ import {
   type FormRules,
   type FormInst,
 } from "naive-ui";
-import { ClipboardClient, ClipboardError } from "../clipboard.ts";
+import { ClipboardClient, ClipboardError, Identity } from "../clipboard.ts";
 import { useNotification, useModal } from "naive-ui";
 import { h } from "vue";
+import FileUpload from "./FileUpload.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -80,7 +104,10 @@ const creationTime = ref(new Date());
 const deadTime = ref(new Date());
 const thisPwd: Ref<string | null> = ref(route.query.pwd as string | null);
 
-const isInitDone = ref(false);
+const isLoading = ref(true);
+const isADMIN = ref(false);
+
+const fileUploadRef = ref<InstanceType<typeof FileUpload> | null>(null);
 
 const isAppend = ref(false);
 const modal = useModal();
@@ -91,6 +118,14 @@ const formValue = ref({
   text: "",
   pwd: "",
   usePwd: false,
+  file: {
+    pass: "",
+    use: false,
+  },
+});
+
+const formPwd = computed(() => {
+  return formValue.value.usePwd ? formValue.value.pwd : undefined;
 });
 
 const options = [
@@ -137,8 +172,13 @@ onMounted(() => {
       deadTime.value = new Date(res.deadTime);
       formValue.value.usePwd = res.pwd !== null;
       formValue.value.pwd = res.pwd ?? "";
+      isADMIN.value = res.identity === Identity.Admin;
+      formValue.value.file.use = res.files.length !== 0;
       notify("info", "查询成功", `查询到剪切板已经存在内容。`);
-      isInitDone.value = true;
+      isLoading.value = false;
+      nextTick(() => {
+        fileUploadRef.value!.initFileData(res.files, formPwd.value ?? null);
+      });
     },
     (rej: ClipboardError) => {
       if (rej.status === 403) {
@@ -150,7 +190,7 @@ onMounted(() => {
         );
       } else {
         isAppend.value = true;
-        isInitDone.value = true;
+        isLoading.value = false;
       }
     },
   );
@@ -197,27 +237,42 @@ function onFormSubmit() {
   });
 }
 
-function submit() {
+async function submit() {
+  async function getAttachment() {
+    return formValue.value.file.use
+      ? {
+          files: await fileUploadRef.value!.toUploadData(formPwd.value),
+          admin_key: formValue.value.file.pass,
+        }
+      : undefined;
+  }
+  isLoading.value = true;
   if (isAppend.value) {
     clipboardClient
       .create(formValue.value.text, {
         id: param,
         expirationTtl: formValue.value.ttl,
-        pwd: formValue.value.usePwd ? formValue.value.pwd : undefined,
+        pwd: formPwd.value,
+        file: await getAttachment(),
       })
       .then(
         () => {
+          isAppend.value = false;
           notify("success", "创建成功！", `成功创建剪切板，名称为 ${param}。`);
         },
         (rej) => {
           notify("error", "创建失败", `创建时发生错误，错误信息：${rej}`);
         },
-      );
+      )
+      .finally(() => {
+        isLoading.value = false;
+      });
   } else {
     clipboardClient
       .update(param, formValue.value.text, {
         old_pwd: thisPwd.value,
-        new_pwd: formValue.value.usePwd ? formValue.value.pwd : undefined,
+        new_pwd: formPwd.value,
+        file: await getAttachment(),
       })
       .then(
         () => {
@@ -226,7 +281,10 @@ function submit() {
         (rej) => {
           notify("error", "更新失败", `更新时发生错误，错误信息：${rej}`);
         },
-      );
+      )
+      .finally(() => {
+        isLoading.value = false;
+      });
   }
 }
 
@@ -254,15 +312,25 @@ function onFormDelete() {
           type: "error",
           onClick: () => {
             m.destroy();
-            clipboardClient.delete(param, thisPwd.value).then(
-              () => {
-                notify("success", "删除成功！", `成功删除剪切板 ${param}。`);
-                router.push("/");
-              },
-              (rej) => {
-                notify("error", "删除失败", `删除时发生错误，错误信息：${rej}`);
-              },
-            );
+            isLoading.value = true;
+            clipboardClient
+              .delete(param, thisPwd.value)
+              .then(
+                () => {
+                  notify("success", "删除成功！", `成功删除剪切板 ${param}。`);
+                  router.push("/");
+                },
+                (rej) => {
+                  notify(
+                    "error",
+                    "删除失败",
+                    `删除时发生错误，错误信息：${rej}`,
+                  );
+                },
+              )
+              .finally(() => {
+                isLoading.value = false;
+              });
           },
         },
         () => "确定",
@@ -296,5 +364,12 @@ h2 {
   width: 100%;
   box-sizing: border-box;
   text-align: left;
+}
+.block-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
 }
 </style>

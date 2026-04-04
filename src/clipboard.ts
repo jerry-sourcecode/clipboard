@@ -2,10 +2,29 @@
 
 import { decrypt, encrypt, hash } from "./utils/crypto.ts";
 
+export interface Attachment {
+  name: string;
+  data: string;
+  MINE: string;
+}
+
+export const Identity = {
+  Admin: "ADMIN",
+  User: "USER",
+};
+
+export type Identity = keyof typeof Identity;
+
+interface Attachments {
+  files: Attachment[];
+  admin_key: string;
+}
+
 export interface CreateOptions {
   id?: string;
   expirationTtl?: number;
   pwd?: string | null;
+  file?: Attachments;
 }
 
 export interface CreateResponse {
@@ -17,6 +36,7 @@ export interface CreateResponse {
 export interface UpdateOptions {
   old_pwd?: string | null;
   new_pwd?: string | null;
+  file?: Attachments;
 }
 
 export interface UpdateResponse {
@@ -35,6 +55,8 @@ export interface GetResponse {
   pwd: string | null;
   creationTime: number;
   deadTime: number;
+  identity: Identity;
+  files: Attachment[];
 }
 
 export class ClipboardClient {
@@ -58,6 +80,10 @@ export class ClipboardClient {
     const payload: any = { content };
     if (options?.id) payload.id = options.id;
     if (options?.expirationTtl) payload.expirationTtl = options.expirationTtl;
+    if (options?.file) {
+      payload.files = options.file.files;
+      payload.admin_key = options.file.admin_key;
+    }
     if (options?.pwd) {
       payload.pwd = await hash(options.pwd);
       payload.content = await encrypt(content, options.pwd);
@@ -138,6 +164,10 @@ export class ClipboardClient {
     if (options?.new_pwd) {
       payload.new_pwd = await hash(options.new_pwd);
       payload.content = await encrypt(content, options.new_pwd);
+    }
+    if (options?.file) {
+      payload.files = options.file.files;
+      payload.admin_key = options.file.admin_key;
     }
 
     const response = await fetch(`${this.baseUrl}/${encodeURIComponent(id)}`, {

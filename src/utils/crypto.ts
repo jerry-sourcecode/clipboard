@@ -16,11 +16,11 @@ function strToUint8(str: string): Uint8Array {
   return new TextEncoder().encode(str);
 }
 
-function uint8ToBase64(uint8: Uint8Array): string {
+export function uint8ToBase64(uint8: Uint8Array): string {
   return btoa(String.fromCharCode(...uint8));
 }
 
-function base64ToUint8(base64: string): Uint8Array {
+export function base64ToUint8(base64: string): Uint8Array {
   return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
 }
 
@@ -59,7 +59,7 @@ async function deriveKey(
  * @param password 密码
  * @returns Base64 编码的密文（含 salt+iv+ciphertext）
  */
-async function encryptBinary(
+export async function encryptBinary(
   data: Uint8Array,
   password: string,
 ): Promise<string> {
@@ -90,7 +90,7 @@ async function encryptBinary(
  * @param password 密码
  * @returns 解密后的原始二进制数据
  */
-async function decryptBinary(
+export async function decryptBinary(
   encryptedBase64: string,
   password: string,
 ): Promise<Uint8Array> {

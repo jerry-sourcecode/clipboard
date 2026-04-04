@@ -40,7 +40,7 @@ function handleBeforeUpload(options: {
   for (let i of options.fileList) {
     tot += (i.file?.size || 0) / 1024;
   }
-  tot += options.file.file?.size!;
+  tot += (options.file.file?.size || 0) / 1024;
   if (tot > 1024 * 100) {
     window.alert("文件总大小不能超过100MB。");
     return false; // 阻止上传
